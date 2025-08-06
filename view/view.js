@@ -1,0 +1,134 @@
+export const Render = () => {
+  const renderCompanyProfile = (companyData, $container) => {
+    renderCompanyImage(companyData.image, $container)
+    renderCompanyInfo(companyData.companyName, companyData.price, companyData.changes, $container)
+    renderCompanyDescriptionWithToggle(companyData.description, $container)
+  }
+
+  const renderCompanyImage = (imageUrl, $container) => {
+    $container.find(".company-img").html(`
+      <picture>
+        <source srcset="${imageUrl}" type="image/webp">
+        <img src="${imageUrl}" alt="company picture" style="max-width: 100%; height: auto; border-radius: 50%;">
+      </picture>
+    `)
+  }
+
+  const renderCompanyInfo = (name, price, change, $container) => {
+    $container.find(".company-info").text(name)
+    $container.find(".stock-price").text(`Stock price: $${price}`)
+    $container.find(".stock-percent")
+      .text(`(${change}%)`)
+      .css("color", change >= 0 ? "green" : "red")
+  }
+
+  const renderCompanyDescriptionWithToggle = (description, $container) => {
+    const maxLength = 300
+    let isExpanded = false
+
+    $container.find(".company-desc").after(`<a href="#" class="toggle-desc">Show more</a>`)
+
+    const updateDescription = () => {
+      if (isExpanded) {
+        $container.find(".company-desc").text(description)
+        $container.find(".toggle-desc").text("Show less")
+      } else {
+        const shortText = description.length > maxLength ? description.substring(0, maxLength) + "..." : description
+        $container.find(".company-desc").text(shortText)
+        $container.find(".toggle-desc").text("Show more")
+      }
+    }
+
+    $container.find(".toggle-desc").on("click", (event) => {
+      event.preventDefault()
+      isExpanded = !isExpanded
+      updateDescription()
+    })
+
+    updateDescription()
+  }
+
+  const renderChart = async (historyData, symbol, $container) => {
+    const canvas = $container.find(`canvas#${symbol}`)[0]
+    
+    if (!canvas) {
+      console.error("Canvas not found for symbol:", symbol)
+      return
+    }
+
+    new Chart(canvas, {
+      type: "line",
+      data: {
+        labels: historyData.map((row) => row.date),
+        datasets: [
+          {
+            label: "Stock Price History",
+            data: historyData.map((row) => row.close),
+            borderColor: "gray",
+            pointRadius: 0,
+          },
+        ],
+      },
+    })
+  }
+
+  const renderSearchResults = (query, loadedData, callback) => {
+    const $companyList = $("#company-list")
+    $companyList.empty()
+
+    loadedData.forEach((item) => {
+      let highlightedName = highlightText(query, item.name)
+      let highlightedSymbol = highlightText(query, item.symbol)
+
+      const $button = $("<button class='btn btn-outline-secondary px-1.5 py-0'>compare</button>")
+      $button.on("click", (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        callback(item)
+      })
+
+      const $listItem = $(`
+        <a href=./company.html?symbol=${item.symbol} class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+          <div class="company-search-item d-flex align-items-center gap-2">
+              <picture>
+                <source srcset="${item.image}" type="image/webp">
+                <img src="${item.image}" alt="" style="width: 2rem; height: 2rem; border-radius: 50%;">
+              </picture>
+              <div>${highlightedName} (${highlightedSymbol})</div>
+              <div class="stock-change" style="color : ${item.changes >= 0 ? "green" : "red"}">(${item.changes}%)</div>
+          </div>
+        </a>
+      `)
+      $listItem.append($button)
+      $companyList.append($listItem)
+    })
+  }
+
+  const highlightText = (query, name) => {
+    const index = name.toLowerCase().indexOf(query.toLowerCase())
+
+    if (index === -1) return name
+
+    const before = name.slice(0, index)
+    const match = name.slice(index, index + query.length)
+    const after = name.slice(index + query.length)
+
+    return `${before}<span class="highlight">${match}</span>${after}`
+  }
+
+  const renderSearchError = (message) => {
+    $(".list-wrapper").append(`<div class="mx-auto">${message}</div>`)
+  }
+
+  const renderInfoError = (message) => {
+    $(".company-wrapper").append(`<div class="mx-auto">${message}</div>`)
+  }
+
+  return {
+    renderSearchResults,
+    renderSearchError,
+    renderCompanyProfile,
+    renderChart,
+    renderInfoError
+  }
+}
